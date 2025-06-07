@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Threading;
 using System.Collections.Generic;
@@ -10,7 +10,6 @@ namespace QueuingSystemSimulation
 {
     class Simulation
     {
-        // Списки для хранения данных для графиков
         private static readonly List<double> arrivalRates = new List<double>();
         private static readonly List<double> theoIdleProbs = new List<double>();
         private static readonly List<double> expIdleProbs = new List<double>();
@@ -23,7 +22,6 @@ namespace QueuingSystemSimulation
         private static readonly List<double> theoAvgBusyChannels = new List<double>();
         private static readonly List<double> expAvgBusyChannels = new List<double>();
 
-        // Основной метод программы
         static void Main(string[] args)
         {
             try
@@ -37,17 +35,15 @@ namespace QueuingSystemSimulation
             }
         }
 
-        // Запуск моделирования с заданными параметрами
         static void ExecuteSimulation()
         {
-            const double serviceRate = 1.0; // Интенсивность обслуживания (mu)
-            const int channels = 5; // Количество каналов (n)
-            const int totalQueries = 25; // Общее количество запросов
-            const double minArrivalRate = 0.1; // Минимальная интенсивность входного потока (lambda)
-            const double maxArrivalRate = 10.0; // Максимальная интенсивность входного потока
-            const double stepArrivalRate = 0.1; // Шаг изменения lambda
+            const double serviceRate = 1.0;
+            const int channels = 5;
+            const int totalQueries = 25;
+            const double minArrivalRate = 0.1;
+            const double maxArrivalRate = 10.0;
+            const double stepArrivalRate = 0.1;
 
-            // Очистка списков перед моделированием
             arrivalRates.Clear();
             theoIdleProbs.Clear();
             expIdleProbs.Clear();
@@ -60,42 +56,34 @@ namespace QueuingSystemSimulation
             theoAvgBusyChannels.Clear();
             expAvgBusyChannels.Clear();
 
-            // Цикл по значениям lambda
             for (double arrivalRate = minArrivalRate; arrivalRate <= maxArrivalRate; arrivalRate += stepArrivalRate)
             {
                 PerformSingleRun(Math.Round(arrivalRate, 1), serviceRate, channels, totalQueries);
             }
         }
 
-        // Выполнение одного цикла моделирования для заданного lambda
         static void PerformSingleRun(double arrivalRate, double serviceRate, int channels, int totalQueries)
         {
             Console.WriteLine($"\nМоделирование для λ = {arrivalRate}, μ = {serviceRate}");
 
-            // Инициализация сервера и клиента
             var queryProcessor = new QueryProcessor(channels, serviceRate);
             var queryGenerator = new QueryGenerator(queryProcessor);
 
-            // Отправка запросов
             DispatchQueries(queryGenerator, arrivalRate, totalQueries);
-            // Ожидание завершения обработки
             AwaitProcessor(queryProcessor);
 
-            // Расчет и сохранение результатов
             ComputeAndStoreResults(arrivalRate, serviceRate, channels, queryProcessor);
         }
 
-        // Отправка запросов от клиента
         static void DispatchQueries(QueryGenerator generator, double arrivalRate, int totalQueries)
         {
             for (int queryId = 1; queryId <= totalQueries; queryId++)
             {
                 generator.Generate(queryId);
-                Thread.Sleep((int)(1000 / arrivalRate)); // Задержка в миллисекундах
+                Thread.Sleep((int)(1000 / arrivalRate));
             }
         }
 
-        // Ожидание завершения работы сервера
         static void AwaitProcessor(QueryProcessor processor)
         {
             while (processor.ActiveChannels() > 0)
@@ -104,25 +92,21 @@ namespace QueuingSystemSimulation
             }
         }
 
-        // Расчет метрик и сохранение в файл
         static void ComputeAndStoreResults(double arrivalRate, double serviceRate, int channels, QueryProcessor processor)
         {
-            // Теоретические расчеты
-            double load = arrivalRate / serviceRate; // Интенсивность нагрузки (rho)
-            double idleProbability = ComputeIdleProbability(load, channels); // P0
-            double rejectionProbability = ComputeRejectionProbability(load, channels, idleProbability); // Pn
-            double throughput = 1 - rejectionProbability; // Q
-            double absoluteThroughput = arrivalRate * throughput; // A
-            double avgBusyChannels = load * throughput; // k
+            double load = arrivalRate / serviceRate;
+            double idleProbability = ComputeIdleProbability(load, channels);
+            double rejectionProbability = ComputeRejectionProbability(load, channels, idleProbability);
+            double throughput = 1 - rejectionProbability;
+            double absoluteThroughput = arrivalRate * throughput;
+            double avgBusyChannels = load * throughput;
 
-            // Экспериментальные расчеты
             double expIdleProbability = processor.CalculateIdleProbability();
             double expRejectionProbability = processor.CalculateRejectionProbability();
             double expThroughput = processor.CalculateThroughput();
             double expAbsoluteThroughput = arrivalRate * expThroughput;
-            double expAvgBusyChannelsValue = processor.CalculateAverageBusyChannels(serviceRate); // Переименовано для ясности
+            double expAvgBusyChannelsValue = processor.CalculateAverageBusyChannels(serviceRate);
 
-            // Сохранение данных для графиков
             arrivalRates.Add(arrivalRate);
             theoIdleProbs.Add(idleProbability);
             expIdleProbs.Add(expIdleProbability);
@@ -133,15 +117,13 @@ namespace QueuingSystemSimulation
             theoAbsThroughputs.Add(absoluteThroughput);
             expAbsThroughputs.Add(expAbsoluteThroughput);
             theoAvgBusyChannels.Add(avgBusyChannels);
-            expAvgBusyChannels.Add(expAvgBusyChannelsValue); // Исправлено: добавляем значение, а не список
+            expAvgBusyChannels.Add(expAvgBusyChannelsValue);
 
-            // Сохранение результатов в файл
             StoreResults(arrivalRate, serviceRate, idleProbability, rejectionProbability, throughput,
                          absoluteThroughput, avgBusyChannels, expIdleProbability, expRejectionProbability,
                          expThroughput, expAbsoluteThroughput, expAvgBusyChannelsValue);
         }
 
-        // Расчет вероятности простоя системы (P0)
         static double ComputeIdleProbability(double load, int channels)
         {
             double sum = 0;
@@ -152,16 +134,13 @@ namespace QueuingSystemSimulation
             return sum > 0 ? 1 / sum : 0;
         }
 
-        // Расчет вероятности отказа (Pn)
         static double ComputeRejectionProbability(double load, int channels, double idleProbability)
         {
             return Math.Pow(load, channels) / Factorial(channels) * idleProbability;
         }
 
-        // Факториал
         static double Factorial(int n) => n <= 1 ? 1 : n * Factorial(n - 1);
 
-        // Форматирование данных для записи
         static string FormatResults(double arrivalRate, double serviceRate,
                                    double idleProb, double rejectProb, double throughput,
                                    double absThroughput, double avgBusyChannels,
@@ -173,7 +152,6 @@ namespace QueuingSystemSimulation
                    $"{expThroughput:F4} {expAbsThroughput:F4} {expAvgBusyChannels:F4}";
         }
 
-        // Сохранение результатов в файл
         static void StoreResults(double arrivalRate, double serviceRate,
                                 double idleProb, double rejectProb, double throughput,
                                 double absThroughput, double avgBusyChannels,
@@ -194,10 +172,8 @@ namespace QueuingSystemSimulation
             }
         }
 
-        // Построение графиков с использованием System.Drawing
         static void GeneratePlots()
         {
-            // Создание папки result, если она не существует
             string resultDir = Path.Combine(Environment.CurrentDirectory, "result");
             try
             {
@@ -209,15 +185,13 @@ namespace QueuingSystemSimulation
                 return;
             }
 
-            // Параметры графика
             int width = 800;
             int height = 600;
             int margin = 80;
             int plotWidth = width - 2 * margin;
             int plotHeight = height - 2 * margin;
 
-            // Масштабирование данных
-            double xMin = 0, xMax = 10; // Диапазон λ
+            double xMin = 0, xMax = 10;
             string[] titles = {
                 "Вероятность простоя системы (P0)",
                 "Вероятность отказа системы (Pn)",
@@ -231,12 +205,11 @@ namespace QueuingSystemSimulation
 
             for (int i = 0; i < 5; i++)
             {
-                // Динамическое определение максимума Y-оси
-                double yMax = 1.0; // Значение по умолчанию
+                double yMax = 1.0;
                 if (theoData[i].Count > 0 && expData[i].Count > 0)
                 {
                     yMax = Math.Max(theoData[i].Max(), expData[i].Max());
-                    yMax = Math.Ceiling(yMax * 1.1); // Увеличение на 10% для запаса
+                    yMax = Math.Ceiling(yMax * 1.1);
                 }
 
                 try
@@ -247,14 +220,12 @@ namespace QueuingSystemSimulation
                         g.Clear(Color.White);
                         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-                        // Отрисовка осей
                         using (Pen axisPen = new Pen(Color.Black, 2))
                         {
-                            g.DrawLine(axisPen, margin, margin, margin, height - margin); // Y-ось
-                            g.DrawLine(axisPen, margin, height - margin, width - margin, height - margin); // X-ось
+                            g.DrawLine(axisPen, margin, margin, margin, height - margin);
+                            g.DrawLine(axisPen, margin, height - margin, width - margin, height - margin);
                         }
 
-                        // Подписи осей
                         using (Font font = new Font("Arial", 10))
                         using (Brush brush = new SolidBrush(Color.Black))
                         {
@@ -263,11 +234,9 @@ namespace QueuingSystemSimulation
                             g.DrawString(yLabels[i], font, brush, new PointF(20, margin + plotHeight / 2 - 10));
                         }
 
-                        // Отрисовка меток на осях
                         using (Font font = new Font("Arial", 8))
                         using (Brush brush = new SolidBrush(Color.Black))
                         {
-                            // X-ось (λ)
                             for (int j = 0; j <= 10; j++)
                             {
                                 float x = margin + (j / 10.0f) * plotWidth;
@@ -275,7 +244,6 @@ namespace QueuingSystemSimulation
                                 g.DrawString(j.ToString(), font, brush, x - 5, height - margin + 10);
                             }
 
-                            // Y-ось
                             for (int j = 0; j <= 5; j++)
                             {
                                 float y = height - margin - (j / 5.0f) * plotHeight;
@@ -284,7 +252,6 @@ namespace QueuingSystemSimulation
                             }
                         }
 
-                        // Отрисовка данных
                         if (arrivalRates.Count > 0 && theoData[i].Count == arrivalRates.Count && expData[i].Count == arrivalRates.Count)
                         {
                             using (Pen theoPen = new Pen(Color.Blue, 2))
@@ -307,7 +274,6 @@ namespace QueuingSystemSimulation
                             }
                         }
 
-                        // Легенда
                         using (Font font = new Font("Arial", 10))
                         using (Brush brush = new SolidBrush(Color.Black))
                         {
@@ -317,7 +283,6 @@ namespace QueuingSystemSimulation
                             g.DrawLine(new Pen(Color.Red, 2), width - margin - 120, margin + 25, width - margin - 140, margin + 25);
                         }
 
-                        // Сохранение графика
                         bmp.Save(Path.Combine(resultDir, $"p-{i + 1}.png"), ImageFormat.Png);
                     }
                 }
@@ -331,14 +296,12 @@ namespace QueuingSystemSimulation
         }
     }
 
-    // Структура для хранения информации о канале
     struct ChannelInfo
     {
         public Thread Thread { get; set; }
         public bool IsOccupied { get; set; }
     }
 
-    // Класс сервера
     class QueryProcessor
     {
         private readonly ChannelInfo[] channels;
@@ -364,7 +327,6 @@ namespace QueuingSystemSimulation
             lastIdleCheck = simulationStart;
         }
 
-        // Обработка входящего запроса
         public void HandleQuery(object sender, QueryEventArgs args)
         {
             lock (lockObject)
@@ -372,7 +334,7 @@ namespace QueuingSystemSimulation
                 TotalQueries++;
                 TotalTime = (DateTime.Now - simulationStart).TotalMilliseconds / 1000.0;
 
-                // Обновление времени простоя
+
                 if (ActiveChannels() == 0)
                 {
                     TotalIdleTime += (DateTime.Now - lastIdleCheck).TotalMilliseconds / 1000.0;
@@ -384,7 +346,6 @@ namespace QueuingSystemSimulation
             }
         }
 
-        // Поиск свободного канала
         private bool TryFindFreeChannel(out int channelIndex)
         {
             for (int i = 0; i < channels.Length; i++)
@@ -399,7 +360,6 @@ namespace QueuingSystemSimulation
             return false;
         }
 
-        // Обработка или отклонение запроса
         private void ProcessOrRejectQuery(int queryId)
         {
             if (TryFindFreeChannel(out int channelIndex))
@@ -413,7 +373,6 @@ namespace QueuingSystemSimulation
             }
         }
 
-        // Обработка запроса в канале
         private void ProcessQuery(int queryId, int channelIndex)
         {
             channels[channelIndex].IsOccupied = true;
@@ -436,7 +395,6 @@ namespace QueuingSystemSimulation
             channels[channelIndex].Thread.Start();
         }
 
-        // Подсчет активных каналов
         public int ActiveChannels()
         {
             int active = 0;
@@ -447,14 +405,12 @@ namespace QueuingSystemSimulation
             return active;
         }
 
-        // Расчет экспериментальных метрик
         public double CalculateIdleProbability() => TotalTime > 0 ? TotalIdleTime / TotalTime : 0;
         public double CalculateRejectionProbability() => TotalQueries > 0 ? (double)RejectedQueries / TotalQueries : 0;
         public double CalculateThroughput() => TotalQueries > 0 ? (double)ProcessedQueries / TotalQueries : 0;
         public double CalculateAverageBusyChannels(double serviceRate) => TotalTime > 0 ? TotalBusyTime / (TotalTime * serviceRate) : 0;
     }
 
-    // Класс клиента
     class QueryGenerator
     {
         public event EventHandler<QueryEventArgs> QueryReceived;
@@ -464,14 +420,12 @@ namespace QueuingSystemSimulation
             QueryReceived += processor.HandleQuery;
         }
 
-        // Генерация запроса
         public void Generate(int queryId)
         {
             QueryReceived?.Invoke(this, new QueryEventArgs { QueryId = queryId });
         }
     }
 
-    // Класс для передачи данных о запросе
     class QueryEventArgs : EventArgs
     {
         public int QueryId { get; set; }
